@@ -10,7 +10,7 @@
 
 ## Usage
 
-Init all `changesets` shortcut commands:
+In monorepo root initial all `changesets` shortcut commands:
 
 ```bash
   pnpm vary init
