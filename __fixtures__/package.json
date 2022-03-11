@@ -1,0 +1,17 @@
+{
+  "name": "test-monorepo",
+  "pravite": true,
+  "scripts": {
+    "test": "node ../bin/vary.js",
+    "push": "vary push",
+    "vp": "vary vp",
+    "release": "vary release",
+    "release:only": "vary release:only",
+    "release:quick": "vary release:quick",
+    "clean:output": "vary clean:output"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.21.0",
+    "@xn-sakina/vary": "file:../"
+  }
+}
