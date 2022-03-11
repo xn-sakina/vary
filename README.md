@@ -23,7 +23,7 @@ command|description
 `clean:output`|Clean all pkgs build output (`dist`/`build`/`es`)
 `init`|Init changeset shortcut command sets
 `push`|Refresh changeset config file `ignore` field then run `changeset` command (All `private: true` packages will add to `ignore`)
-`release`|First build all pkgs, then publish to npm
+`release`|First build all pkgs(`npm run build`), then publish to npm
 `release:only`|Only use changeset publish to npm
 `release:quick`|First up pkgs version, then publish to npm
 `vp`|Run `changeset version` command for up pkgs version
