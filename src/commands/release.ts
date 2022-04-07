@@ -9,8 +9,15 @@ import { vp } from './vp'
 /**
  * Only use changeset publish to npm
  */
-export const releaseOnly = async () => {
-  await cmd(`changeset publish`, {
+export const releaseOnly = async (opts: ICmdOpts) => {
+  const { argv } = opts
+
+  const cmdAsString = [
+    'changeset publish',
+    argv?.tag ? `--tag ${argv.tag}` : false
+  ].filter(Boolean).join(' ')
+
+  await cmd(cmdAsString, {
     env: {
       ...process.env,
       npm_config_registry: 'https://registry.npmjs.com/',
@@ -21,9 +28,9 @@ export const releaseOnly = async () => {
 /**
  * First up pkgs version, then publish to npm
  */
-export const releaseQuick = async () => {
-  await vp()
-  await releaseOnly()
+export const releaseQuick = async (opts: ICmdOpts) => {
+  await vp(opts)
+  await releaseOnly(opts)
 }
 
 /**
@@ -41,5 +48,5 @@ export const release = async (opts: ICmdOpts) => {
   )
 
   await cmd(`npm run build`)
-  await releaseOnly()
+  await releaseOnly(opts)
 }

@@ -5,10 +5,11 @@
     "test": "node ../bin/vary.js",
     "push": "vary push",
     "vp": "vary vp",
-    "release": "vary release",
-    "release:only": "vary release:only",
+    "release": "DEBUG_VARY=true vary release --tag beta",
+    "release:only": "DEBUG_VARY=true vary release:only",
     "release:quick": "vary release:quick",
-    "clean:output": "vary clean:output"
+    "clean:output": "vary clean:output",
+    "build": "echo build"
   },
   "devDependencies": {
     "@changesets/cli": "^2.21.0",

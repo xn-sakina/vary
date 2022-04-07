@@ -6,6 +6,7 @@ specifiers:
   '@types/fs-extra': ^9.0.13
   '@types/lodash': ^4.14.181
   '@types/node': ^17.0.23
+  '@types/yargs-parser': ^21.0.0
   chalk: ^4.0.0
   commander: ^9.1.0
   commit-verify: ^1.0.3
@@ -34,6 +35,7 @@ devDependencies:
   '@types/fs-extra': 9.0.13
   '@types/lodash': 4.14.181
   '@types/node': 17.0.23
+  '@types/yargs-parser': 21.0.0
   commit-verify: 1.0.3
   eslint: 8.12.0
   husky: 7.0.4
@@ -184,6 +186,10 @@ packages:
 
   /@types/parse-json/4.0.0:
     resolution: {integrity: sha512-//oorEZjL6sbPcKUaCdIGlIUeH26mgzimjBB77G6XRgnDl/L5wOnpyBGRe/Mmf5CVW3PwEBE1NjiMZ/ssFh4wA==}
+    dev: true
+
+  /@types/yargs-parser/21.0.0:
+    resolution: {integrity: sha512-iO9ZQHkZxHn4mSakYV0vFHAVDyEOIJQrV2uZ06HxEPcx+mt8swXoZHIbaaJ2crJYFfErySgktuTZ3BeLz+XmFA==}
     dev: true
 
   /@typescript-eslint/parser/5.18.0_eslint@8.12.0+typescript@4.6.3:

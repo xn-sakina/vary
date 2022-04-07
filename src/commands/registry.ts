@@ -5,6 +5,7 @@ import { release, releaseOnly, releaseQuick } from './release'
 import { vp } from './vp'
 import { program } from 'commander'
 import { init } from './init'
+import yParser from 'yargs-parser'
 
 const CMDS: Record<string, ICmd> = {
   push: {
@@ -47,6 +48,7 @@ const CMDS: Record<string, ICmd> = {
 export const registry = () => {
   const opts: ICmdOpts = {
     root: process.cwd(),
+    argv: yParser(process.argv.slice(2)),
   }
   Object.keys(CMDS)
     .sort((a, b) => a.localeCompare(b))
@@ -57,7 +59,7 @@ export const registry = () => {
       if (aliasCmd?.length) {
         chain = chain.alias(aliasCmd)
       }
-      chain.description(description).action(async () => {
+      chain.description(description).allowUnknownOption(true).action(async () => {
         await method(opts)
       })
     })
