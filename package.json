@@ -54,5 +54,12 @@
   "publishConfig": {
     "access": "public"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "engines": {
+    "pnpm": "^7.0.1",
+    "node": ">= 16.14.1",
+    "yarn": "forbidden, use pnpm",
+    "npm": "forbidden, use pnpm"
+  },
+  "packageManager": "pnpm@7.0.1"
 }
