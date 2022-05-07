@@ -2,16 +2,23 @@ import assert from 'assert'
 import chalk from 'chalk'
 import { existsSync, readJsonSync, writeFileSync } from 'fs-extra'
 import { join } from 'path'
+import { getPnpmVersion } from '../utils/pnpm'
 import { ICmdOpts } from './interface'
 
-const DEFAULT_COMMADS: Record<string, string> = {
-  push: 'vary push',
-  vp: 'vary vp',
-  release: 'vary release',
-  'release:only': 'vary release:only',
-  'release:quick': 'vary release:quick',
-  'clean:output': 'vary clean:output',
-  build: 'pnpm -r --filter ./packages run build',
+const getDefaultCommands = async (): Promise<Record<string, string>> => {
+  const pnpmVersion = await getPnpmVersion()
+  const isLegacyPnpm = pnpmVersion.startsWith('6')
+  const filterGlob = isLegacyPnpm ? `./packages` : `'./packages/**'`
+
+  return {
+    push: 'vary push',
+    vp: 'vary vp',
+    release: 'vary release',
+    'release:only': 'vary release:only',
+    'release:quick': 'vary release:quick',
+    'clean:output': 'vary clean:output',
+    build: `pnpm -r --filter ${filterGlob} run build`,
+  }
 }
 
 /**
@@ -23,7 +30,8 @@ export const init = async (opts: ICmdOpts) => {
 
   const pkg = readJsonSync(pkgPath, { encoding: 'utf-8' })
   pkg.scripts ??= {}
-  Object.entries(DEFAULT_COMMADS).forEach(([name, script]) => {
+  const defaultCommands = await getDefaultCommands()
+  Object.entries(defaultCommands).forEach(([name, script]) => {
     if (!pkg.scripts[name]) {
       pkg.scripts[name] = script
       console.log(`Set ${chalk.green(name)} command success`)
