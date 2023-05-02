@@ -6,10 +6,11 @@ import { vp } from './vp'
 import { program } from 'commander'
 import { init } from './init'
 import yParser from 'yargs-parser'
+import { sync } from './sync'
 
 const CMDS: Record<string, ICmd> = {
   push: {
-    cmd: ['push'],
+    cmd: ['push', 'p'],
     method: push,
     description: `Refresh changeset config file 'ignore' field then run 'changeset' command`,
   },
@@ -19,29 +20,34 @@ const CMDS: Record<string, ICmd> = {
     description: `Run 'changeset version' command for up pkgs version`,
   },
   release: {
-    cmd: ['release'],
+    cmd: ['release', 'r'],
     method: release,
     description: `First build all pkgs, then publish to npm`,
   },
   releaseQuick: {
-    cmd: ['release:quick'],
+    cmd: ['release:quick', 'rq'],
     method: releaseQuick,
     description: `First up pkgs version, then publish to npm`,
   },
   releaseOnly: {
-    cmd: ['release:only'],
+    cmd: ['release:only', 'ro'],
     method: releaseOnly,
     description: `Only use changeset publish to npm`,
   },
   cleanOutput: {
-    cmd: ['clean:output'],
+    cmd: ['clean:output', 'clean'],
     method: cleanOutput,
     description: `Clean all pkgs build output (dist/build/es)`,
   },
   init: {
-    cmd: ['init'],
+    cmd: ['init', 'i'],
     method: init,
     description: `Init changeset shortcut command sets`,
+  },
+  sync: {
+    cmd: ['sync', 's'],
+    method: sync,
+    description: `Sync all public packages to some registry`,
   },
 }
 
@@ -59,8 +65,11 @@ export const registry = () => {
       if (aliasCmd?.length) {
         chain = chain.alias(aliasCmd)
       }
-      chain.description(description).allowUnknownOption(true).action(async () => {
-        await method(opts)
-      })
+      chain
+        .description(description)
+        .allowUnknownOption(true)
+        .action(async () => {
+          await method(opts)
+        })
     })
 }
