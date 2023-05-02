@@ -106,7 +106,6 @@ jobs:
         with:
           node-version: 18.x
           registry-url: 'https://registry.npmjs.com/'
-          cache: 'npm'
 
       - name: Sync dependencies
         run: |
