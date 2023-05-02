@@ -29,7 +29,7 @@ export const releaseOnly = async (opts: ICmdOpts) => {
  * First up pkgs version, then publish to npm
  */
 export const releaseQuick = async (opts: ICmdOpts) => {
-  await vp(opts)
+  await vp()
   await releaseOnly(opts)
 }
 
