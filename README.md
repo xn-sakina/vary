@@ -5,6 +5,9 @@
 ## Install
 
 ```bash
+  # pnpm v8
+  pnpm add -D -w @xn-sakina/vary
+  # pnpm v7
   pnpm add -DW @xn-sakina/vary
 ```
 
