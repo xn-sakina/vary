@@ -21,15 +21,16 @@ In monorepo root initial all `changesets` shortcut commands:
 
 ### Commands
 
-command|description
-:-:|:-
-`clean:output`|Clean all pkgs build output (`dist`/`build`/`es`)
-`init`|Init changeset shortcut command sets
-`push`|Refresh changeset config file `ignore` field then run `changeset` command (All `private: true` packages will add to `ignore`)
-`release`|First build all pkgs(`npm run build`), then publish to npm
-`release:only`|Only use changeset publish to npm
-`release:quick`|First up pkgs version, then publish to npm
-`vp`|Run `changeset version` command for up pkgs version
+command|alias|description
+:-:|:-:|:-
+`clean:output`|`clean`|Clean all pkgs build output (`dist`/`build`/`es`)
+`init`|`i`|Init changeset shortcut command sets
+`push`|`p`|Refresh changeset config file `ignore` field then run `changeset` command (All `private: true` packages will add to `ignore`)
+`release`|`r`|First build all pkgs(`npm run build`), then publish to npm
+`release:only`|`ro`|Only use changeset publish to npm
+`release:quick`|`rq`|First up pkgs version, then publish to npm
+`vp`|`version-packages`|Run `changeset version` command for up pkgs version
+`sync`|`s`|Sync all public packages to some registry
 
 ## Example
 
@@ -58,6 +59,59 @@ command|description
 ```bash
   # Only execute publish
   pnpm release:only
+```
+
+## Sync packages
+
+### Sync command
+
+```bash
+  # Will auto sync all public packages to cnpm by default
+  pnpm vary sync
+```
+
+Use `process.env.VARY_SYNC_AGENTS` to sync multi registries:
+
+```bash
+  # Sync to `cnpm` and `tnpm`
+  VARY_SYNC_AGENTS=cnpm,tnpm pnpm vary sync
+```
+
+### Sync Github actions
+
+```yml
+name: Sync packages
+
+on:
+  push:
+    # An event will not be created when you create more than three tags at once.
+    # https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#create
+    tags:
+      - '*'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout 🛎️
+        uses: actions/checkout@v3
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18.x
+          registry-url: 'https://registry.npmjs.com/'
+          cache: 'npm'
+
+      - name: Sync dependencies
+        run: |
+          npm i -g cnpm @xn-sakina/vary
+          vary sync
 ```
 
 ## License
