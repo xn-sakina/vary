@@ -1,0 +1,32 @@
+
+name: Sync cnpm
+
+on:
+  push:
+    # An event will not be created when you create more than three tags at once.
+    # https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#create
+    tags:
+      - '*'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout 🛎️
+        uses: actions/checkout@v3
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18.x
+          registry-url: 'https://registry.npmjs.com/'
+
+      - name: Sync dependencies
+        run: |
+          npm i -g cnpm
+          cnpm sync @xn-sakina/vary
