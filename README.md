@@ -95,7 +95,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  sync:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout 🛎️
