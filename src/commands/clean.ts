@@ -1,4 +1,4 @@
-import chalk from 'chalk'
+import chalk from '@xn-sakina/vary/compiled/chalk'
 import { remove, existsSync } from 'fs-extra'
 import { join } from 'path'
 import { getPkgs } from '../utils/getPkgs'

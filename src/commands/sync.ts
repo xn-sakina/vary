@@ -1,4 +1,4 @@
-import chalk from 'chalk'
+import chalk from '@xn-sakina/vary/compiled/chalk'
 import { getPkgs } from '../utils/getPkgs'
 import { ICmdOpts } from './interface'
 import execa from 'execa'

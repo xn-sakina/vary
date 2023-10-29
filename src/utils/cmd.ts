@@ -1,4 +1,4 @@
-import chalk from 'chalk'
+import chalk from '@xn-sakina/vary/compiled/chalk'
 import execa, { type Options } from 'execa'
 
 export const cmd = async (cmd: string, opts?: Options) => {

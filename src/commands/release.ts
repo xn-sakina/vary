@@ -1,5 +1,5 @@
 import assert from 'assert'
-import chalk from 'chalk'
+import chalk from '@xn-sakina/vary/compiled/chalk'
 import { existsSync, readJsonSync } from 'fs-extra'
 import { join } from 'path'
 import { cmd } from '../utils/cmd'
