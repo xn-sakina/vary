@@ -31,6 +31,7 @@ command|alias|description
 `release:quick`|`rq`|First up pkgs version, then publish to npm
 `vp`|`version-packages`|Run `changeset version` command for up pkgs version
 `sync`|`s`|Sync all public packages to some registry
+`napi-publish`|`np`|Publish multi platforms pkgs to npm with napi
 
 ## Example
 
@@ -111,6 +112,15 @@ jobs:
         run: |
           npm i -g cnpm @xn-sakina/vary
           vary sync
+```
+
+## Napi publish
+
+Manually publish napi packages without `napi-build` and `build.rs`
+
+```bash
+  pnpm vary napi-publish
+  # or `pnpm vary np`
 ```
 
 ## License
