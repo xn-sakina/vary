@@ -1,18 +1,46 @@
 {
   "name": "test-monorepo",
-  "pravite": true,
+  "version": "1.0.0",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xn-sakina/vary"
+  },
+  "files": [
+    "index.js"
+  ],
   "scripts": {
-    "test": "node ../bin/vary.js",
+    "build": "pnpm -r --filter './packages/**' run build",
+    "clean:output": "vary clean:output",
+    "np": "DEBUG_VARY=true vary np",
     "push": "vary push",
-    "vp": "vary vp",
     "release": "DEBUG_VARY=true vary release --tag beta",
     "release:only": "DEBUG_VARY=true vary release:only",
     "release:quick": "vary release:quick",
-    "clean:output": "vary clean:output",
-    "build": "pnpm -r --filter './packages/**' run build"
+    "test": "node ../bin/vary.js",
+    "vp": "vary vp"
   },
   "devDependencies": {
     "@changesets/cli": "^2.26.1",
-    "@xn-sakina/vary": "link:../"
+    "@xn-sakina/vary": "file:../"
+  },
+  "napi": {
+    "name": "test-node",
+    "triples": {
+      "defaults": false,
+      "additional": [
+        "x86_64-apple-darwin",
+        "aarch64-apple-darwin",
+        "x86_64-pc-windows-msvc",
+        "aarch64-pc-windows-msvc",
+        "x86_64-unknown-linux-gnu",
+        "aarch64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl",
+        "aarch64-unknown-linux-musl"
+      ]
+    },
+    "package": {
+      "name": "@xn-sakina/test"
+    }
   }
 }
