@@ -7,6 +7,7 @@ import { program } from 'commander'
 import { init } from './init'
 import yParser from 'yargs-parser'
 import { sync } from './sync'
+import { napiPublish } from './napiPublish'
 
 const CMDS: Record<string, ICmd> = {
   push: {
@@ -48,6 +49,11 @@ const CMDS: Record<string, ICmd> = {
     cmd: ['sync', 's'],
     method: sync,
     description: `Sync all public packages to some registry`,
+  },
+  napiPublish: {
+    cmd: ['napi-publish', 'np'],
+    method: napiPublish,
+    description: `Publish multi platforms pkgs to npm with napi`,
   },
 }
 
