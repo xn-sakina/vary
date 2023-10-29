@@ -20,8 +20,8 @@ export const cleanOutput = async (opts: ICmdOpts) => {
       await remove(outputPath)
       console.log(
         `Delete pkg ${chalk.green(packageJson.name)} output ${chalk.blue(
-          output
-        )} success`
+          output,
+        )} success`,
       )
     })
   })

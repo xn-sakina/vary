@@ -25,7 +25,7 @@ export const sync = async (opts: ICmdOpts) => {
 
   if (!agents.length) {
     console.log(
-      chalk.red(`Not found any agents, please set VARY_SYNC_AGENTS env.`)
+      chalk.red(`Not found any agents, please set VARY_SYNC_AGENTS env.`),
     )
     return
   }

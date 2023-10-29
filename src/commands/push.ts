@@ -25,7 +25,7 @@ export const push = async (opts: ICmdOpts) => {
   const changesetsConfigPath = join(opts.root, './.changeset/config.json')
   assert(
     existsSync(changesetsConfigPath),
-    chalk.red(`Changesets config file not found !`)
+    chalk.red(`Changesets config file not found !`),
   )
 
   const config = readJSONSync(changesetsConfigPath, { encoding: 'utf-8' })
@@ -34,7 +34,7 @@ export const push = async (opts: ICmdOpts) => {
     writeFileSync(
       changesetsConfigPath,
       `${JSON.stringify(config, null, 2)}\n`,
-      'utf-8'
+      'utf-8',
     )
   }
 

@@ -14,8 +14,10 @@ export const releaseOnly = async (opts: ICmdOpts) => {
 
   const cmdAsString = [
     'changeset publish',
-    argv?.tag ? `--tag ${argv.tag}` : false
-  ].filter(Boolean).join(' ')
+    argv?.tag ? `--tag ${argv.tag}` : false,
+  ]
+    .filter(Boolean)
+    .join(' ')
 
   await cmd(cmdAsString, {
     env: {
@@ -44,7 +46,7 @@ export const release = async (opts: ICmdOpts) => {
   const scripts = pkg?.scripts
   assert(
     Boolean(scripts?.build?.length),
-    chalk.red(`package.json#script.build must exist !`)
+    chalk.red(`package.json#script.build must exist !`),
   )
 
   await cmd(`npm run build`)
