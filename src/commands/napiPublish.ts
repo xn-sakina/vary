@@ -253,7 +253,10 @@ export const napiPublish = async (opts: ICmdOpts) => {
       })
       // publish: root package only
       await cmd(
-        `cd ./dist && npm publish --registry https://registry.npmjs.com/`,
+        `npm publish --registry https://registry.npmjs.com/`,
+        {
+          cwd: join(root, './dist')
+        }
       )
       return
     }
