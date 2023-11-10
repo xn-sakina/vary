@@ -372,6 +372,8 @@ This is the WASM binary for [\`${pkgName}\`](${repoUrl}).
       // set main/types
       newPkg.main = 'index.js'
       newPkg.types = 'index.d.ts'
+      // set name
+      newPkg.name = wasmName
       // write package.json
       const newPkgPath = join(wasmPublishDir, 'package.json')
       writeFileSync(
