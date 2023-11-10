@@ -35,6 +35,7 @@ interface IArch {
 
 interface IVaryConfig {
   keepKeys?: string[]
+  wasmName?: string
 }
 
 const ARCH_MAP: Record<string, IArch> = {
@@ -276,6 +277,123 @@ export const napiPublish = async (opts: ICmdOpts) => {
       // publish: root package only
       await cmd(`npm publish --registry https://registry.npmjs.com/`, {
         cwd: join(root, './dist'),
+      })
+      return
+    }
+
+    const isReleaseWasm = argv?.wasm
+    if (isReleaseWasm) {
+      console.log(`Will release the wasm package.`)
+      // build
+      await cmd(`pnpm build:wasm`)
+      // add wasm files to root
+      const wasmFiles = [
+        join(__dirname, '../helpers/napi/index.js'),
+        join(__dirname, '../helpers/napi/postinstall.js'),
+      ]
+      // copy to root
+      wasmFiles.forEach((file) => {
+        console.log(`Generate wasm file: ${basename(file)}`)
+        copyFileSync(file, join(root, basename(file)))
+      })
+      // check binding.js exists
+      const bindingFile = join(root, 'binding.js')
+      if (!existsSync(bindingFile)) {
+        throw new Error(`The 'binding.js' file does not exist.`)
+      }
+      // check package.json#files
+      const files = rootPkg.files as string[]
+      const mustHasFiles = ['binding.js', 'index.js', 'postinstall.js']
+      mustHasFiles.forEach((file) => {
+        if (!files.includes(file)) {
+          throw new Error(
+            `package.json#files must includes ${mustHasFiles.join(', ')}`,
+          )
+        }
+      })
+      // entry must be index.js
+      if (rootPkg.main !== 'index.js') {
+        console.warn(
+          `package.json#main must be index.js, but got ${rootPkg.main}`,
+        )
+      }
+      // need build first
+      const targetDir = join(root, 'target/wasm')
+      if (!existsSync(targetDir)) {
+        throw new Error(
+          `The 'target/wasm' dir does not exist. Please build first`,
+        )
+      }
+      // start mkdir
+      const wasmPublishDir = join(root, 'target', 'wasm_publish')
+      if (existsSync(wasmPublishDir)) {
+        removeSync(wasmPublishDir)
+      }
+      mkdirSync(wasmPublishDir)
+      const wasmOutputs = readdirSync(targetDir)
+        .filter((i) => {
+          return i.endsWith('.wasm') || i.endsWith('.js') || i.endsWith('.d.ts')
+        })
+        .map((i) => join(targetDir, i))
+      // copy
+      wasmOutputs.forEach((file) => {
+        copyFileSync(file, join(wasmPublishDir, basename(file)))
+        console.log(`Copy wasm output: ${basename(file)}`)
+      })
+      // we only support index.wasm
+      if (!existsSync(join(wasmPublishDir, 'index.wasm'))) {
+        throw new Error(`index.wasm is required, please check build output`)
+      }
+      const getWasmName = () => {
+        if ((rootPkg?.vary as IVaryConfig | undefined)?.wasmName?.length) {
+          return rootPkg.vary.wasmName
+        }
+        return `${rootPkg.napi?.package?.name}-wasm`
+      }
+      const wasmName = getWasmName() as string
+      console.log(`Wasm package name: ${wasmName}`)
+      // create readme
+      const pkgName = rootPkg.name as string
+      const repoUrl = rootPkg.repository?.url as string
+      const readmeContent = `
+# ${wasmName}
+
+This is the WASM binary for [\`${pkgName}\`](${repoUrl}).
+`.trimStart()
+      const readmePath = join(wasmPublishDir, 'README.md')
+      console.log(`Create readme: ${basename(readmePath)}`)
+      writeFileSync(readmePath, readmeContent, 'utf-8')
+      // create package.json
+      const newPkg = pick(rootPkg, [
+        'version',
+        'description',
+        'author',
+        'homepage',
+        'repository',
+        'keywords',
+        'license',
+      ]) as Record<string, any>
+      // set main/types
+      newPkg.main = 'index.js'
+      newPkg.types = 'index.d.ts'
+      // write package.json
+      const newPkgPath = join(wasmPublishDir, 'package.json')
+      writeFileSync(
+        newPkgPath,
+        `${JSON.stringify(sortPackageJson(newPkg), null, 2)}\n`,
+        'utf-8',
+      )
+      // copy license
+      const globalLicensePath = join(root, 'LICENSE')
+      assert(
+        existsSync(globalLicensePath),
+        `LICENSE file is required in root dir`,
+      )
+      const licensePath = join(wasmPublishDir, 'LICENSE')
+      copyFileSync(globalLicensePath, licensePath)
+      // publish: wasm package only
+      await cmd(`npm publish --registry https://registry.npmjs.com/`, {
+        cwd: wasmPublishDir,
       })
       return
     }
