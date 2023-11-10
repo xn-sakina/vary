@@ -1,7 +1,7 @@
 import { ICmdOpts } from './interface'
 import { sortPackageJson } from '@xn-sakina/vary/compiled/sort-package-json'
 import assert from 'assert'
-import { difference, pick } from 'lodash'
+import { difference, get, pick, set } from 'lodash'
 import { basename, join } from 'path'
 import {
   appendFileSync,
@@ -31,6 +31,10 @@ interface IArch {
    * rust target name
    */
   targetName: string
+}
+
+interface IVaryConfig {
+  keepKeys?: string[]
 }
 
 const ARCH_MAP: Record<string, IArch> = {
@@ -234,6 +238,17 @@ export const napiPublish = async (opts: ICmdOpts) => {
           postinstall: rootPkg.scripts.postinstall,
         }
       }
+      const varyConfig = rootPkg.vary as IVaryConfig | undefined
+      if (varyConfig) {
+        const extraKeys = varyConfig.keepKeys
+        if (extraKeys?.length) {
+          extraKeys.forEach((key) => {
+            set(publishPkg, key, get(rootPkg, key))
+          })
+        }
+        // keep vary config
+        publishPkg.vary = rootPkg.vary
+      }
       writeFileSync(
         join(publishDir, 'package.json'),
         `${JSON.stringify(sortPackageJson(publishPkg), null, 2)}\n`,
@@ -259,12 +274,9 @@ export const napiPublish = async (opts: ICmdOpts) => {
         copyFileSync(sourcePath, join(publishDir, file))
       })
       // publish: root package only
-      await cmd(
-        `npm publish --registry https://registry.npmjs.com/`,
-        {
-          cwd: join(root, './dist')
-        }
-      )
+      await cmd(`npm publish --registry https://registry.npmjs.com/`, {
+        cwd: join(root, './dist'),
+      })
       return
     }
 
