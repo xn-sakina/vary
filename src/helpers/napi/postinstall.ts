@@ -99,11 +99,16 @@ const validateBinary = async () => {
     )
 
     const installedBinPath = path.join(installDir, 'node_modules', wasmName)
-    // INIT_CWD is injected via npm. If it doesn't exists, can't proceed.
-    fs.renameSync(
-      installedBinPath,
-      path.resolve(process.env.INIT_CWD!, 'node_modules', wasmName),
+    const targetPath = path.resolve(
+      process.env.INIT_CWD!,
+      'node_modules',
+      wasmName,
     )
+    if (!fs.existsSync(targetPath)) {
+      fs.mkdirSync(targetPath, { recursive: true })
+    }
+    // INIT_CWD is injected via npm. If it doesn't exists, can't proceed.
+    fs.renameSync(installedBinPath, targetPath)
   } catch (error) {
     console.error(error)
 
