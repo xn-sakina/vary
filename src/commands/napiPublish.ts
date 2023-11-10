@@ -340,10 +340,6 @@ export const napiPublish = async (opts: ICmdOpts) => {
         copyFileSync(file, join(wasmPublishDir, basename(file)))
         console.log(`Copy wasm output: ${basename(file)}`)
       })
-      // we only support index.wasm
-      if (!existsSync(join(wasmPublishDir, 'index.wasm'))) {
-        throw new Error(`index.wasm is required, please check build output`)
-      }
       const getWasmName = () => {
         if ((rootPkg?.vary as IVaryConfig | undefined)?.wasmName?.length) {
           return rootPkg.vary.wasmName
