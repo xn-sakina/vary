@@ -225,6 +225,7 @@ export const napiPublish = async (opts: ICmdOpts) => {
         'keywords',
         'license',
         'engines',
+        'napi',
       ]) as Record<string, any>
       publishPkg.optionalDependencies = optionalDependencies
       // postinstall
