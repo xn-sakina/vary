@@ -368,6 +368,7 @@ This is the WASM binary for [\`${pkgName}\`](${repoUrl}).
         'repository',
         'keywords',
         'license',
+        'publishConfig',
       ]) as Record<string, any>
       // set main/types
       newPkg.main = 'index.js'
