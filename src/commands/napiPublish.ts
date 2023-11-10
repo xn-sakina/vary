@@ -227,6 +227,12 @@ export const napiPublish = async (opts: ICmdOpts) => {
         'engines',
       ]) as Record<string, any>
       publishPkg.optionalDependencies = optionalDependencies
+      // postinstall
+      if (rootPkg?.scripts?.postinstall?.length) {
+        publishPkg.scripts = {
+          postinstall: rootPkg.scripts.postinstall,
+        }
+      }
       writeFileSync(
         join(publishDir, 'package.json'),
         `${JSON.stringify(sortPackageJson(publishPkg), null, 2)}\n`,
