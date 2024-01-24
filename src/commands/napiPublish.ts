@@ -1,4 +1,4 @@
-import { ICmdOpts, IPkg } from './interface'
+import { ICmdOpts, INapiV2, INapiV3, IPkg } from './interface'
 import { sortPackageJson } from '@xn-sakina/vary/compiled/sort-package-json'
 import assert from 'assert'
 import { difference, get, pick, set } from 'lodash'
@@ -20,6 +20,7 @@ import chalk from '@xn-sakina/vary/compiled/chalk'
 import YAML from 'yaml'
 import { releaseOnly } from './release'
 import os from 'os'
+import resolve from 'resolve'
 
 interface IArch {
   /**
@@ -124,6 +125,48 @@ interface INapiArgv {
   wasmOpt?: string | boolean
 }
 
+const NAPI_PKGS = {
+  wasmRuntime: '@napi-rs/wasm-runtime',
+  cli: '@napi-rs/cli',
+} as const
+
+interface IDetectNapiCLIVersion {
+  isV2: boolean
+  isV3: boolean
+}
+
+function detectNapiCLIVersion(opts: { root: string }): IDetectNapiCLIVersion {
+  const { root } = opts
+  const rootPkgPath = join(root, 'package.json')
+  if (!existsSync(rootPkgPath)) {
+    throw new Error(`package.json not found in root dir`)
+  }
+  const rootPkg = require(rootPkgPath) as IPkg
+  const deps = {
+    ...(rootPkg?.dependencies || {}),
+    ...(rootPkg?.devDependencies || {}),
+  }
+  const hasCliDep = deps?.[NAPI_PKGS.cli]
+  if (!hasCliDep?.length) {
+    throw new Error(
+      `Cannot find ${NAPI_PKGS.cli} in root package.json, please install it`,
+    )
+  }
+  const resolvedDepPkg = resolve.sync(`${NAPI_PKGS.cli}/package.json`, {
+    basedir: root,
+  })
+  const cliVersion = require(resolvedDepPkg).version as string
+  const isV2 = cliVersion.startsWith('2.')
+  const isV3 = cliVersion.startsWith('3.')
+
+  console.log(`Using ${chalk.cyan(NAPI_PKGS.cli)}@${chalk.cyan(cliVersion)}`)
+
+  return {
+    isV2,
+    isV3,
+  }
+}
+
 export const napiPublish = async (opts: ICmdOpts<INapiArgv>) => {
   const { root, argv } = opts
 
@@ -143,6 +186,9 @@ export const napiPublish = async (opts: ICmdOpts<INapiArgv>) => {
     return
   }
 
+  // detect napi cli version
+  const { isV2, isV3 } = detectNapiCLIVersion({ root })
+
   const packageName = rootPkg.name as string
   assert(packageName, `package.json#name is required`)
   const globalVersion = rootPkg.version
@@ -154,6 +200,49 @@ export const napiPublish = async (opts: ICmdOpts<INapiArgv>) => {
     `package.json#repository.url is required, e.g. https://github.com/user/repo`,
   )
 
+  const getNapiCompatConfig = (): Required<INapiV3> => {
+    const napiConfig = rootPkg?.napi
+    if (!napiConfig) {
+      throw new Error(`package.json#napi is required`)
+    }
+    const napiConfigV2 = napiConfig as INapiV2
+    const napiConfigV3 = napiConfig as INapiV3
+    const throwMissingError = (key: string) => {
+      throw new Error(`package.json#napi.${key} is required`)
+    }
+    if (isV2) {
+      // ensure `triples.defaults` is false
+      const isMannualConfig =
+        napiConfigV2.triples?.defaults === false &&
+        napiConfigV2.triples?.additional?.length
+      if (!isMannualConfig) {
+        throw new Error(
+          `package.json#napi.triples.defaults must be false, and manually config all platforms`,
+        )
+      }
+      return {
+        binaryName: napiConfigV2.name || throwMissingError('name'),
+        packageName: napiConfigV2.package?.name || throwMissingError('package'),
+        targets:
+          napiConfigV2.triples?.additional || throwMissingError('triples'),
+      }
+    }
+    if (isV3) {
+      const hasTargets = napiConfigV3.targets?.length
+      if (!hasTargets) {
+        throw new Error(`package.json#napi.targets is required and not empty`)
+      }
+      return {
+        binaryName: napiConfigV3.binaryName || throwMissingError('binaryName'),
+        packageName:
+          napiConfigV3.packageName || throwMissingError('packageName'),
+        targets: napiConfigV3.targets || throwMissingError('targets'),
+      }
+    }
+    throw new Error(`Unsupported napi cli version`)
+  }
+  const napiFinalConfig = getNapiCompatConfig()
+
   const release = async () => {
     const globalProps = pick(rootPkg, [
       'author',
@@ -163,23 +252,11 @@ export const napiPublish = async (opts: ICmdOpts<INapiArgv>) => {
       'license',
       'publishConfig',
     ])
-    const subPackagesPrefix = rootPkg.napi?.package?.name as string | undefined
-    assert(
-      subPackagesPrefix,
-      `package.json#napi.package.name is required, e.g. @scope/pkg-prefix`,
-    )
+    const subPackagesPrefix = napiFinalConfig.packageName
 
     // make sure napi config fields exist
-    const nodeBinaryPrefix = rootPkg.napi?.name
-    assert(
-      nodeBinaryPrefix,
-      `package.json#napi.name is required, e.g. package-name`,
-    )
-    const additional = rootPkg.napi?.triples?.additional as string[] | undefined
-    assert(
-      rootPkg.napi?.triples?.defaults === false && additional?.length,
-      `package.json#napi.triples.defaults must be false, and manually config all platforms`,
-    )
+    const nodeBinaryPrefix = napiFinalConfig.binaryName
+    const additional = napiFinalConfig.targets
 
     const allSupportTargetList = Object.values(ARCH_MAP).map(
       (i) => i.targetName,
@@ -390,7 +467,7 @@ export const napiPublish = async (opts: ICmdOpts<INapiArgv>) => {
         if ((rootPkg?.vary as IVaryConfig | undefined)?.wasmName?.length) {
           return rootPkg.vary.wasmName
         }
-        return `${rootPkg.napi?.package?.name}-wasm`
+        return `${subPackagesPrefix}-wasm`
       }
       const wasmName = getWasmName() as string
       console.log(`Wasm package name: ${wasmName}`)
@@ -480,7 +557,7 @@ This is the WASM binary for [\`${pkgName}\`](${repoUrl}).
         if ((rootPkg?.vary as IVaryConfig | undefined)?.wasmWebName?.length) {
           return rootPkg.vary.wasmWebName
         }
-        return `${rootPkg.napi?.package?.name}-wasm-web`
+        return `${subPackagesPrefix}-wasm-web`
       }
       const wasmName = getWasmWebName() as string
       console.log(`Wasm (web) package name: ${wasmName}`)
