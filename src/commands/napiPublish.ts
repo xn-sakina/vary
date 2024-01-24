@@ -139,6 +139,10 @@ interface INapiArgv {
    * use napi to build wasm
    */
   napiWasm?: boolean
+  /**
+   * `--napi-wasm` alias
+   */
+  wasmNapi?: boolean
 }
 
 const NAPI_PKGS = {
@@ -399,7 +403,7 @@ export const napiPublish = async (opts: ICmdOpts<INapiArgv>) => {
     }
 
     const isReleaseWasm = argv?.wasm
-    const isReleaseNapiWasm = argv?.napiWasm
+    const isReleaseNapiWasm = argv?.napiWasm || argv?.wasmNapi
     if (isReleaseWasm || isReleaseNapiWasm) {
       if (isReleaseWasm && isReleaseNapiWasm) {
         throw new Error(`You cannot use --wasm and --napi-wasm together`)
@@ -443,6 +447,9 @@ export const napiPublish = async (opts: ICmdOpts<INapiArgv>) => {
       }
       // check package.json#files
       const files = rootPkg.files as string[]
+      if (!files?.length) {
+        throw new Error(`package.json#files is required`)
+      }
       const mustHasFiles = ['binding.js', 'index.js', 'postinstall.js']
       mustHasFiles.forEach((file) => {
         if (!files.includes(file)) {
@@ -566,8 +573,8 @@ This is the WASM binary for [\`${pkgName}\`](${repoUrl}).
         newPkg.main = 'index.js'
       }
       if (isReleaseNapiWasm) {
-        newPkg.main = napiWasmOutputs!.entryForNode
-        newPkg.browser = napiWasmOutputs!.entryForBrowser
+        newPkg.main = basename(napiWasmOutputs!.entryForNode)
+        newPkg.browser = basename(napiWasmOutputs!.entryForBrowser)
         // custom field
         newPkg.__wasi = true
         // add runtime deps
