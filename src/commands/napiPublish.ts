@@ -464,7 +464,7 @@ This is the WASM binary for [\`${pkgName}\`](${repoUrl}).
 # ${wasmName}
 
 This is the WASM (Web) binary for [\`${pkgName}\`](${repoUrl}).
-    `.trimStart()
+`.trimStart()
       const readmePath = join(wasmPublishDir, 'README.md')
       console.log(`Create readme: ${basename(readmePath)}`)
       writeFileSync(readmePath, readmeContent, 'utf-8')
