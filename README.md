@@ -144,6 +144,12 @@ Wasm-opt:
   pnpm vary np --wasm-opt ./target/wasm/index.wasm
 ```
 
+(Experiment) Publish wasm with using napi-rs (wasi):
+
+```bash
+  pnpm vary np --napi-wasm
+```
+
 ## License
 
 MIT
