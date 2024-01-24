@@ -123,6 +123,21 @@ Manually publish napi packages without `napi-build` and `build.rs`
   # or `pnpm vary np`
 ```
 
+Publish root package:
+
+```bash
+  pnpm vary np --root
+```
+
+Publish wasm package:
+
+```bash
+  # for Node.js
+  pnpm vary np --wasm
+  # for web
+  pnpm vary np --wasm-web
+```
+
 ## License
 
 MIT
