@@ -1,4 +1,4 @@
-import { ICmdOpts } from './interface'
+import { ICmdOpts, IPkg } from './interface'
 import { sortPackageJson } from '@xn-sakina/vary/compiled/sort-package-json'
 import assert from 'assert'
 import { difference, get, pick, set } from 'lodash'
@@ -116,13 +116,14 @@ const ARCH_MAP: Record<string, IArch> = {
 interface INapiArgv {
   root?: boolean
   wasm?: boolean
+  wasmWeb?: boolean
 }
 
 export const napiPublish = async (opts: ICmdOpts<INapiArgv>) => {
   const { root, argv } = opts
 
   const rootPkgPath = join(root, 'package.json')
-  const rootPkg = require(rootPkgPath)
+  const rootPkg = require(rootPkgPath) as IPkg
 
   const packageName = rootPkg.name as string
   assert(packageName, `package.json#name is required`)
@@ -316,10 +317,27 @@ export const napiPublish = async (opts: ICmdOpts<INapiArgv>) => {
           )
         }
       })
+      const recommandHasFiles = ['index.d.ts', 'CHANGELOG.md']
+      recommandHasFiles.forEach((file) => {
+        if (!files.includes(file)) {
+          console.warn(
+            `The file ${chalk.yellow(
+              file,
+            )} is recommended to be included in package.json#files`,
+          )
+        }
+      })
       // entry must be index.js
       if (rootPkg.main !== 'index.js') {
         console.warn(
           `package.json#main must be index.js, but got ${rootPkg.main}`,
+        )
+      }
+      // must have `postinstall` script
+      const postinstallScript = rootPkg?.scripts?.postinstall
+      if (!postinstallScript?.length) {
+        throw new Error(
+          `package.json must include the 'scripts.postinstall' for wasm fallback`,
         )
       }
       // need build first
