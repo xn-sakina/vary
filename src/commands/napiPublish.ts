@@ -119,9 +119,21 @@ const ARCH_MAP: Record<string, IArch> = {
 }
 
 interface INapiArgv {
+  /**
+   * wheather release root package
+   */
   root?: boolean
+  /**
+   * wheather release wasm package for node.js
+   */
   wasm?: boolean
+  /**
+   * wheather release wasm (web) package
+   */
   wasmWeb?: boolean
+  /**
+   * wasm-opt file or dir path
+   */
   wasmOpt?: string | boolean
 }
 
