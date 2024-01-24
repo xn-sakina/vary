@@ -36,6 +36,7 @@ interface IArch {
 interface IVaryConfig {
   keepKeys?: string[]
   wasmName?: string
+  wasmWebName?: string
 }
 
 const ARCH_MAP: Record<string, IArch> = {
@@ -395,6 +396,91 @@ This is the WASM binary for [\`${pkgName}\`](${repoUrl}).
       ]) as Record<string, any>
       // set main/types
       newPkg.main = 'index.js'
+      newPkg.types = 'index.d.ts'
+      // set name
+      newPkg.name = wasmName
+      // write package.json
+      const newPkgPath = join(wasmPublishDir, 'package.json')
+      writeFileSync(
+        newPkgPath,
+        `${JSON.stringify(sortPackageJson(newPkg), null, 2)}\n`,
+        'utf-8',
+      )
+      // copy license
+      const globalLicensePath = join(root, 'LICENSE')
+      assert(
+        existsSync(globalLicensePath),
+        `LICENSE file is required in root dir`,
+      )
+      const licensePath = join(wasmPublishDir, 'LICENSE')
+      copyFileSync(globalLicensePath, licensePath)
+      // publish: wasm package only
+      await cmd(`npm publish --registry https://registry.npmjs.com/`, {
+        cwd: wasmPublishDir,
+      })
+      return
+    }
+
+    const isReleaseWasmForWeb = argv?.wasmWeb
+    if (isReleaseWasmForWeb) {
+      console.log(`Will release the wasm (web) package.`)
+      // build
+      await cmd(`pnpm build:wasm:web`)
+      // need build first
+      const targetDir = join(root, 'target/wasm_web')
+      if (!existsSync(targetDir)) {
+        throw new Error(
+          `The 'target/wasm_web' dir does not exist. Please build first`,
+        )
+      }
+      // start mkdir
+      const wasmPublishDir = join(root, 'target', 'wasm_web_publish')
+      if (existsSync(wasmPublishDir)) {
+        removeSync(wasmPublishDir)
+      }
+      mkdirSync(wasmPublishDir)
+      const wasmOutputs = readdirSync(targetDir)
+        .filter((i) => {
+          return i.endsWith('.wasm') || i.endsWith('.js') || i.endsWith('.d.ts')
+        })
+        .map((i) => join(targetDir, i))
+      // copy
+      wasmOutputs.forEach((file) => {
+        copyFileSync(file, join(wasmPublishDir, basename(file)))
+        console.log(`Copy wasm output: ${basename(file)}`)
+      })
+      const getWasmWebName = () => {
+        if ((rootPkg?.vary as IVaryConfig | undefined)?.wasmWebName?.length) {
+          return rootPkg.vary.wasmWebName
+        }
+        return `${rootPkg.napi?.package?.name}-wasm-web`
+      }
+      const wasmName = getWasmWebName() as string
+      console.log(`Wasm (web) package name: ${wasmName}`)
+      // create readme
+      const pkgName = rootPkg.name as string
+      const repoUrl = rootPkg.repository?.url as string
+      const readmeContent = `
+# ${wasmName}
+
+This is the WASM (Web) binary for [\`${pkgName}\`](${repoUrl}).
+    `.trimStart()
+      const readmePath = join(wasmPublishDir, 'README.md')
+      console.log(`Create readme: ${basename(readmePath)}`)
+      writeFileSync(readmePath, readmeContent, 'utf-8')
+      // create package.json
+      const newPkg = pick(rootPkg, [
+        'version',
+        'description',
+        'author',
+        'homepage',
+        'repository',
+        'keywords',
+        'license',
+        'publishConfig',
+      ]) as Record<string, any>
+      // set module(esm) / types
+      newPkg.module = 'index.js'
       newPkg.types = 'index.d.ts'
       // set name
       newPkg.name = wasmName
