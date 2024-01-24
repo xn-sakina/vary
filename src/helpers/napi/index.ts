@@ -8,7 +8,7 @@ const getWasmName = () => {
   if (pkg?.vary?.wasmName) {
     return pkg.vary.wasmName
   }
-  const packageName = pkg.napi?.package.name || pkg.napi?.packageName
+  const packageName = pkg.napi?.package?.name || pkg.napi?.packageName
   const wasmPkgName = `${packageName}-wasm`
   return wasmPkgName
 }
