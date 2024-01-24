@@ -113,7 +113,12 @@ const ARCH_MAP: Record<string, IArch> = {
   },
 }
 
-export const napiPublish = async (opts: ICmdOpts) => {
+interface INapiArgv {
+  root?: boolean
+  wasm?: boolean
+}
+
+export const napiPublish = async (opts: ICmdOpts<INapiArgv>) => {
   const { root, argv } = opts
 
   const rootPkgPath = join(root, 'package.json')

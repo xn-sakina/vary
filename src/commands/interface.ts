@@ -1,10 +1,10 @@
-interface IArgv extends Record<string, any> {
+type IArgv<T> = {
   tag?: string
-}
+} & T
 
-export interface ICmdOpts {
+export interface ICmdOpts<T extends Record<string, any> = Record<string, any>> {
   root: string
-  argv: IArgv
+  argv: IArgv<T>
 }
 
 export interface ICmd {
