@@ -138,6 +138,12 @@ Publish wasm package:
   pnpm vary np --wasm-web
 ```
 
+Wasm-opt:
+
+```bash
+  pnpm vary np --wasm-opt ./target/wasm/index.wasm
+```
+
 ## License
 
 MIT

@@ -2,14 +2,16 @@ import { ICmdOpts, IPkg } from './interface'
 import { sortPackageJson } from '@xn-sakina/vary/compiled/sort-package-json'
 import assert from 'assert'
 import { difference, get, pick, set } from 'lodash'
-import { basename, join } from 'path'
+import { basename, join, relative } from 'path'
 import {
   appendFileSync,
   copyFileSync,
   existsSync,
   mkdirSync,
+  mkdirpSync,
   readFileSync,
   removeSync,
+  statSync,
   writeFileSync,
 } from 'fs-extra'
 import { readdirSync } from 'fs'
@@ -17,6 +19,7 @@ import { cmd } from '../utils/cmd'
 import chalk from '@xn-sakina/vary/compiled/chalk'
 import YAML from 'yaml'
 import { releaseOnly } from './release'
+import os from 'os'
 
 interface IArch {
   /**
@@ -118,6 +121,7 @@ interface INapiArgv {
   root?: boolean
   wasm?: boolean
   wasmWeb?: boolean
+  wasmOpt?: string | boolean
 }
 
 export const napiPublish = async (opts: ICmdOpts<INapiArgv>) => {
@@ -125,6 +129,19 @@ export const napiPublish = async (opts: ICmdOpts<INapiArgv>) => {
 
   const rootPkgPath = join(root, 'package.json')
   const rootPkg = require(rootPkgPath) as IPkg
+
+  // for wasm-opt
+  const shouldCallWasmOptTask = argv?.wasmOpt
+  if (shouldCallWasmOptTask) {
+    await performWasmOpt({
+      root,
+      wasmPathOrDir:
+        typeof shouldCallWasmOptTask === 'string'
+          ? shouldCallWasmOptTask
+          : undefined,
+    })
+    return
+  }
 
   const packageName = rootPkg.name as string
   assert(packageName, `package.json#name is required`)
@@ -348,6 +365,11 @@ export const napiPublish = async (opts: ICmdOpts<INapiArgv>) => {
           `The 'target/wasm' dir does not exist. Please build first`,
         )
       }
+      // perform wasm opt
+      await performWasmOpt({
+        root,
+        wasmPathOrDir: targetDir,
+      })
       // start mkdir
       const wasmPublishDir = join(root, 'target', 'wasm_publish')
       if (existsSync(wasmPublishDir)) {
@@ -433,6 +455,11 @@ This is the WASM binary for [\`${pkgName}\`](${repoUrl}).
           `The 'target/wasm_web' dir does not exist. Please build first`,
         )
       }
+      // perform wasm opt
+      await performWasmOpt({
+        root,
+        wasmPathOrDir: targetDir,
+      })
       // start mkdir
       const wasmPublishDir = join(root, 'target', 'wasm_web_publish')
       if (existsSync(wasmPublishDir)) {
@@ -622,4 +649,159 @@ This is the \`${archInfo.desc}\` binary for [\`${packageName}\`](${repoUrl}).
   }
 
   await release()
+}
+
+export async function performWasmOpt(opts: {
+  wasmPathOrDir?: string
+  root: string
+}) {
+  const { wasmPathOrDir, root } = opts
+
+  // check wasm opt option, recommand disable it
+  // https://github.com/rustwasm/wasm-pack/issues/864#issuecomment-957818452
+  const wasmOptShouldCloseTips = () => {
+    if (process.env.VARY_SKIP_WASM_OPT_TIPS?.length) {
+      return
+    }
+    const wasmOptTitle = `[package.metadata.wasm-pack.profile.release]`
+    const rootCargoFilePath = join(root, './Cargo.toml')
+    if (!existsSync(rootCargoFilePath)) {
+      return
+    }
+    const printTips = (target: string) => {
+      const relativePath = relative(root, target)
+      console.log(
+        `Cannot find the 'wasm-opt' config in ${relativePath}, please set:`,
+      )
+      console.log(chalk.blue(wasmOptTitle))
+      console.log(chalk.blue(`wasm-opt = false`))
+    }
+    const checkWasmOpt = (tomlFilePath: string) => {
+      const content = readFileSync(tomlFilePath, 'utf-8')
+      const hasTitle = content.includes(wasmOptTitle)
+      const hasOpt = content.includes('wasm-opt')
+      const hasConfig = hasTitle && hasOpt
+      if (!hasConfig) {
+        printTips(tomlFilePath)
+      }
+    }
+    const rootCargoFileContent = readFileSync(rootCargoFilePath, 'utf-8')
+    const hasWorkspace = rootCargoFileContent.includes('[workspace]')
+    if (!hasWorkspace) {
+      // check wasm-opt
+      checkWasmOpt(rootCargoFilePath)
+      return
+    }
+    // is workspace
+    const maybeWasmPkgTomlPath: string[] = [
+      join(root, './crates/binding_wasm/Cargo.toml'),
+      join(root, './crates/wasm/Cargo.toml'),
+    ]
+    // check first exists toml only
+    maybeWasmPkgTomlPath.some((path) => {
+      const hasTomlFile = existsSync(path)
+      if (hasTomlFile) {
+        checkWasmOpt(path)
+        return true
+      }
+    })
+  }
+  wasmOptShouldCloseTips()
+
+  const platform = os.platform()
+  const arch = os.arch()
+
+  const runOpt = async () => {
+    if (process.env.VARY_SKIP_WASM_OPT?.length) {
+      return
+    }
+    const defaultWasmFilePath: string[] = [
+      join(root, './target/wasm'),
+      join(root, './target/wasm_web'),
+    ]
+    // ensure `wasmPathOrDir` exists
+    if (wasmPathOrDir && !existsSync(wasmPathOrDir)) {
+      throw new Error(`The specified wasm file or dir does not exist`)
+    }
+    const wasmOutputDir: string[] = wasmPathOrDir?.length
+      ? []
+      : defaultWasmFilePath
+    // handle dir
+    if (wasmPathOrDir) {
+      const isSpecifiedWasmPathIsDir = statSync(wasmPathOrDir).isDirectory()
+      if (isSpecifiedWasmPathIsDir) {
+        wasmOutputDir.push(wasmPathOrDir)
+      }
+    }
+    const wasmFilePath: string[] = []
+    wasmOutputDir.forEach((dir) => {
+      if (existsSync(dir) && statSync(dir).isDirectory()) {
+        const wasmFiles = readdirSync(dir).filter((i) => i.endsWith('.wasm'))
+        if (wasmFiles?.length) {
+          wasmFiles.forEach((p) => {
+            const wasmFileAbsPath = join(dir, p)
+            const relativePath = relative(root, wasmFileAbsPath)
+            console.log(`Wasm-opt: ${chalk.blue(relativePath)}`)
+            wasmFilePath.push(wasmFileAbsPath)
+          })
+        }
+      }
+    })
+    // handle file
+    if (wasmPathOrDir && statSync(wasmPathOrDir).isFile()) {
+      wasmFilePath.push(wasmPathOrDir)
+    }
+    if (!wasmFilePath.length) {
+      console.log(`Cannot find wasm file, skip wasm-opt`)
+      return
+    }
+
+    const version = 'version_116'
+    const platformMark =
+      platform === 'darwin'
+        ? 'macos'
+        : platform === 'linux'
+        ? 'linux'
+        : (() => {
+            throw new Error(`Unsupported platform: ${platform}`)
+          })()
+    const archMark =
+      arch === 'x64'
+        ? 'x86_64'
+        : arch === 'arm64'
+        ? 'arm64'
+        : (() => {
+            throw new Error(`Unsupported arch: ${arch}`)
+          })()
+    const url = `https://github.com/WebAssembly/binaryen/releases/download/${version}/binaryen-${version}-${archMark}-${platformMark}.tar.gz`
+    console.log(`Platform: ${platform}`)
+    console.log(`Arch: ${arch}`)
+    console.log(`Version: ${version}`)
+    console.log(`URL: ${url}`)
+    const cacheDir = join(root, 'target', '.wasm-cache')
+    if (!existsSync(cacheDir)) {
+      mkdirpSync(cacheDir)
+    }
+    const filePath = join(cacheDir, 'binaryen.tar.gz')
+    if (!existsSync(filePath)) {
+      // download
+      console.log(`Downloading ${url}`)
+      await cmd(`curl -L ${url} -o ${filePath}`)
+      // unzip
+      console.log(`Unzip ${filePath}`)
+      await cmd(`tar -xvf ${filePath} -C ${cacheDir}`)
+    }
+    // opt
+    console.log(`Optimizing`)
+    const optBinPath = join(cacheDir, `./binaryen-${version}/bin/wasm-opt`)
+    const optTasks = wasmFilePath.map((wasmFile) => {
+      return cmd(`${optBinPath} -Oz -o ${wasmFile} ${wasmFile}`)
+    })
+    await Promise.all(optTasks)
+  }
+  try {
+    await runOpt()
+  } catch (e) {
+    console.log(chalk.yellow(`Wasm opt failed, Error: `, e))
+  }
 }
