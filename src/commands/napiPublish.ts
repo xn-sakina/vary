@@ -657,6 +657,8 @@ export async function performWasmOpt(opts: {
 }) {
   const { wasmPathOrDir, root } = opts
 
+  console.log(chalk.cyan(`Start wasm opt ...`))
+
   // check wasm opt option, recommand disable it
   // https://github.com/rustwasm/wasm-pack/issues/864#issuecomment-957818452
   const wasmOptShouldCloseTips = () => {
@@ -670,11 +672,13 @@ export async function performWasmOpt(opts: {
     }
     const printTips = (target: string) => {
       const relativePath = relative(root, target)
+      console.log()
       console.log(
         `Cannot find the 'wasm-opt' config in ${relativePath}, please set:`,
       )
-      console.log(chalk.blue(wasmOptTitle))
-      console.log(chalk.blue(`wasm-opt = false`))
+      console.log(chalk.yellow(wasmOptTitle))
+      console.log(chalk.yellow(`wasm-opt = false`))
+      console.log()
     }
     const checkWasmOpt = (tomlFilePath: string) => {
       const content = readFileSync(tomlFilePath, 'utf-8')
@@ -749,6 +753,7 @@ export async function performWasmOpt(opts: {
     })
     // handle file
     if (wasmPathOrDir && statSync(wasmPathOrDir).isFile()) {
+      console.log(`Wasm-opt: ${chalk.blue(wasmPathOrDir)}`)
       wasmFilePath.push(wasmPathOrDir)
     }
     if (!wasmFilePath.length) {
@@ -804,4 +809,6 @@ export async function performWasmOpt(opts: {
   } catch (e) {
     console.log(chalk.yellow(`Wasm opt failed, Error: `, e))
   }
+
+  console.log(chalk.cyan(`Wasm opt done`))
 }
