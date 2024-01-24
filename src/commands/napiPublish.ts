@@ -135,6 +135,10 @@ interface INapiArgv {
    * wasm-opt file or dir path
    */
   wasmOpt?: string | boolean
+  /**
+   * use napi to build wasm
+   */
+  napiWasm?: boolean
 }
 
 const NAPI_PKGS = {
@@ -395,8 +399,31 @@ export const napiPublish = async (opts: ICmdOpts<INapiArgv>) => {
     }
 
     const isReleaseWasm = argv?.wasm
-    if (isReleaseWasm) {
-      console.log(`Will release the wasm package.`)
+    const isReleaseNapiWasm = argv?.napiWasm
+    if (isReleaseWasm || isReleaseNapiWasm) {
+      if (isReleaseWasm && isReleaseNapiWasm) {
+        throw new Error(`You cannot use --wasm and --napi-wasm together`)
+      }
+      if (isReleaseWasm) {
+        console.log(`Will release the wasm package.`)
+      }
+      if (isReleaseNapiWasm) {
+        console.log(
+          `Will release the wasm (${chalk.bold.cyan('napi wasi')}) package.`,
+        )
+      }
+      // get napi wasm runtime deps version
+      let napiWasmRuntimeVersion: string
+      if (isReleaseNapiWasm) {
+        const allRootDeps = {
+          ...rootPkg?.dependencies,
+          ...rootPkg?.devDependencies,
+        }
+        napiWasmRuntimeVersion = allRootDeps?.[NAPI_PKGS.wasmRuntime]
+        if (!napiWasmRuntimeVersion?.length) {
+          throw new Error(`Please install ${NAPI_PKGS.wasmRuntime}`)
+        }
+      }
       // build
       await cmd(`pnpm build:wasm`)
       // add wasm files to root
@@ -465,11 +492,23 @@ export const napiPublish = async (opts: ICmdOpts<INapiArgv>) => {
         removeSync(wasmPublishDir)
       }
       mkdirSync(wasmPublishDir)
-      const wasmOutputs = readdirSync(targetDir)
-        .filter((i) => {
-          return i.endsWith('.wasm') || i.endsWith('.js') || i.endsWith('.d.ts')
-        })
-        .map((i) => join(targetDir, i))
+      const wasmOutputs: string[] = []
+      if (isReleaseWasm) {
+        const outputs = readdirSync(targetDir)
+          .filter((i) => {
+            return (
+              i.endsWith('.wasm') || i.endsWith('.js') || i.endsWith('.d.ts')
+            )
+          })
+          .map((i) => join(targetDir, i))
+        wasmOutputs.push(...outputs)
+      }
+      let napiWasmOutputs: INapiWasiOutput | undefined
+      if (isReleaseNapiWasm) {
+        napiWasmOutputs = resolveWasiOutput({ dir: targetDir })
+        const ouputs = napiWasmOutputs.allFiles
+        wasmOutputs.push(...ouputs)
+      }
       // copy
       wasmOutputs.forEach((file) => {
         copyFileSync(file, join(wasmPublishDir, basename(file)))
@@ -486,11 +525,28 @@ export const napiPublish = async (opts: ICmdOpts<INapiArgv>) => {
       // create readme
       const pkgName = rootPkg.name as string
       const repoUrl = rootPkg.repository?.url as string
-      const readmeContent = `
+      const generateReadmeContent = () => {
+        if (isReleaseWasm) {
+          const content = `
 # ${wasmName}
 
 This is the WASM binary for [\`${pkgName}\`](${repoUrl}).
 `.trimStart()
+          return content
+        }
+        if (isReleaseNapiWasm) {
+          const content = `
+# ${wasmName} (wasi)
+
+> This package can be used for both Node.js and Web envs.
+
+This is the WASM binary for [\`${pkgName}\`](${repoUrl}).
+`.trimStart()
+          return content
+        }
+        throw new Error(`Unreachable`)
+      }
+      const readmeContent = generateReadmeContent()
       const readmePath = join(wasmPublishDir, 'README.md')
       console.log(`Create readme: ${basename(readmePath)}`)
       writeFileSync(readmePath, readmeContent, 'utf-8')
@@ -506,7 +562,20 @@ This is the WASM binary for [\`${pkgName}\`](${repoUrl}).
         'publishConfig',
       ]) as Record<string, any>
       // set main/types
-      newPkg.main = 'index.js'
+      if (isReleaseWasm) {
+        newPkg.main = 'index.js'
+      }
+      if (isReleaseNapiWasm) {
+        newPkg.main = napiWasmOutputs!.entryForNode
+        newPkg.browser = napiWasmOutputs!.entryForBrowser
+        // custom field
+        newPkg.__wasi = true
+        // add runtime deps
+        newPkg.dependencies = {
+          [NAPI_PKGS.wasmRuntime]: napiWasmRuntimeVersion!,
+          // we need keep all `dependencies` ?
+        }
+      }
       newPkg.types = 'index.d.ts'
       // set name
       newPkg.name = wasmName
@@ -900,4 +969,78 @@ export async function performWasmOpt(opts: {
   }
 
   console.log(chalk.cyan(`Wasm opt done`))
+}
+
+type WasiWorker = `${string}.mjs`
+interface INapiWasiOutput {
+  wasiWorker: WasiWorker[]
+  wasm: `${string}.wasm`
+  entryForNode: `${string}.wasi.cjs`
+  entryForBrowser: `${string}.wasi-browser.js`
+  extra: string[]
+  allFiles: string[]
+}
+
+function resolveWasiOutput(opts: { dir: string }): INapiWasiOutput {
+  let wasiWorker: any[] = []
+  let wasm: any
+  let entryForNode: any
+  let entryForBrowser: any
+  const { dir } = opts
+  if (!existsSync(dir)) {
+    throw new Error(`The wasi output dir does not exist`)
+  }
+  const files = readdirSync(dir)
+    .filter((p) => p !== '.DS_Store')
+    .map((p) => join(dir, p))
+    .filter((p) => statSync(p).isFile())
+  files.forEach((p: any) => {
+    const file = basename(p)
+    if (file.includes('wasi-worker')) {
+      wasiWorker.push(p)
+      return
+    }
+    if (file.endsWith('.wasm')) {
+      wasm = p
+      return
+    }
+    if (file.endsWith('.wasi.cjs')) {
+      entryForNode = p
+      return
+    }
+    if (file.endsWith('.wasi-browser.js')) {
+      entryForBrowser = p
+      return
+    }
+  })
+  if (!wasiWorker?.length) {
+    throw new Error(`Not found wasi worker files, like "name.mjs"`)
+  }
+  if (!wasm?.length) {
+    throw new Error(`Not found wasi file, like "name.wasm"`)
+  }
+  if (!entryForNode?.length) {
+    throw new Error(`Not found wasi cjs entry file, like "name.wasi.cjs"`)
+  }
+  if (!entryForBrowser?.length) {
+    throw new Error(
+      `Not found wasi browser entry file, like "name.wasi-browser.js"`,
+    )
+  }
+  const extraFiles: string[] = ['index.d.ts']
+  const allFiles: string[] = [
+    ...wasiWorker,
+    wasm,
+    entryForNode,
+    entryForBrowser,
+    ...extraFiles,
+  ]
+  return {
+    wasiWorker,
+    wasm: wasm!,
+    entryForBrowser: entryForBrowser!,
+    entryForNode: entryForNode!,
+    extra: extraFiles,
+    allFiles,
+  }
 }
